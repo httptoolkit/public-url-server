@@ -155,7 +155,7 @@ class AdminSession {
     }
 
     startRequest(req: http.IncomingMessage, res: http.ServerResponse) {
-        const requestId = crypto.randomBytes(32).toString('hex');
+        const requestId = crypto.randomBytes(16).toString('hex');
         const session = new RequestSession(requestId, req, res, this.cleanupRequest.bind(this));
         this.requestMap.set(requestId, session);
 
