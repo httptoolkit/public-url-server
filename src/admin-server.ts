@@ -41,6 +41,12 @@ export class AdminServer {
 
             if (headers[':method'] === 'POST') {
                 if (headers[':path'] === '/start') {
+                    if (adminSession) {
+                        console.log('Received duplicate /start request on admin session');
+                        stream.respond({ ':status': 400 });
+                        stream.end();
+                        adminSession.close();
+                    }
                     try {
                         adminSession = await this.handleStartRequest(stream, session);
                     } catch (e) {
