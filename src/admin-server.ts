@@ -54,11 +54,6 @@ export class AdminServer {
                     console.log(`${headers[':path']} request on an admin stream before /start`)
                     stream.respond({ ':status': 400 });
                     return;
-                } else if (headers[':path'] === '/end') {
-                    stream.respond({ ':status': 200 })
-                    stream.end();
-                    session.close();
-                    return;
                 } else if (headers[':path']?.startsWith('/request/')) {
                     const requestId = headers[':path'].slice('/request/'.length);
                     const requestSession = adminSession.getRequestSession(requestId);
@@ -77,6 +72,14 @@ export class AdminServer {
             console.log(`Unknown admin request: ${headers[':method']} ${headers[':path']}`);
             stream.respond({ ':status': 404 });
             stream.end();
+        });
+
+        session.on('error', (e) => {
+            console.error(`Error in admin session (${adminSession?.id}):`, e);
+        });
+
+        session.on('close', () => {
+            console.error(`Admin session (${adminSession?.id}) close`);
         });
     }
 
@@ -103,6 +106,12 @@ export class AdminServer {
         stream.on('close', () => {
             this.connectionMap.delete(endpointId);
             adminSession.close();
+        });
+
+        lineStream.on('line', (line) => {
+            if (!line) return; // Ignore empty lines, can be used as keep-alives
+            const message = JSON.parse(line);
+            console.log(`Received admin message for endpoint ${endpointId}:`, message);
         });
 
         return adminSession;
@@ -134,6 +143,15 @@ class AdminSession {
     close() {
         this.controlStream.end();
         this.session.close();
+
+        for (let requestSession of this.requestMap.values()) {
+            requestSession.close();
+        }
+
+        // Try to cleanup nicely, then just kill everything
+        setTimeout(() => {
+            this.session.destroy();
+        }, 5_000);
     }
 
     startRequest(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -251,6 +269,18 @@ class RequestSession {
                 setImmediate(() => this.req.destroy());
             } catch (e) {}
         });
+    }
+
+    close() {
+        // Hard shutdown everything
+        console.log(`Shutting down active request session ${this.id}}`);
+
+        try {
+            this.res.end();
+        } catch (e) {}
+        try {
+            this.req.destroy();
+        } catch (e) {}
     }
 
 }
