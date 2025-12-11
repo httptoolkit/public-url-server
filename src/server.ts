@@ -18,6 +18,10 @@ async function startAdminServer(options: {
         adminServer.listen({ port: options.adminPort }, resolve);
     });
 
+    adminServer.on('connection', (socket) => {
+        console.log('Got socket for admin server');
+    });
+
     return adminServer;
 }
 
@@ -33,6 +37,10 @@ async function startPublicUrlServer(options: {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('Hello from Public URL Server!\n');
     }));
+
+    server.on('connection', (socket) => {
+        console.log('Got socket for public url server');
+    });
 
     await new Promise<void>((resolve) => {
         server.listen(options.publicPort, () => {
