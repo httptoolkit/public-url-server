@@ -1,8 +1,7 @@
-import * as http from 'http';
+import { once } from 'events';
+import { createInterface } from 'readline';
 import * as http2 from 'http2';
 import { expect } from 'chai';
-import * as streamConsumers from 'stream/consumers';
-import { DestroyableServer } from 'destroyable-server';
 
 import { startServers } from '../src/server.ts';
 
@@ -22,9 +21,9 @@ function sendH2Request(port: number, path: string): Promise<{ headers: http2.Inc
 const ADMIN_PORT = 5050;
 const PUBLIC_PORT = 5001;
 
-describe("Server setup", () => {
+describe("Smoke test", () => {
 
-    let servers: DestroyableServer[];
+    let servers: Array<{ destroy: () => Promise<void> }>;
 
     beforeEach(async () => {
         servers = await startServers({
@@ -45,12 +44,29 @@ describe("Server setup", () => {
         expect(text).to.equal('Hello from Public URL Server!\n');
     });
 
-    it("sets up a admin API endpoint", async () => {
-        const h2Response = await sendH2Request(ADMIN_PORT, '/');
+    it("can create & tunnel an HTTP request", async () => {
+        const h2Client = http2.connect(`http://localhost:${ADMIN_PORT}/`);
+        const adminReq = h2Client.request({
+            ':method': 'POST',
+            ':path': '/start'
+        });
 
-        expect(h2Response.headers[':status']).to.equal(200);
+        const [headers] = await once(adminReq, 'response') as [http2.IncomingHttpHeaders];
+        expect(headers[':status']).to.equal(200);
 
-        expect(await streamConsumers.text(h2Response.stream)).to.equal('Hello world');
+        const lineStream = createInterface({ input: adminReq, crlfDelay: Infinity });
+
+        adminReq.write(JSON.stringify({
+            command: 'auth',
+            params: {}
+        }) + '\n');
+
+        const [adminResponseLine] = await once(lineStream, 'line') as [string];
+        const adminResponse = JSON.parse(adminResponseLine);
+        expect(adminResponse.success).to.equal(true);
+        expect(adminResponse.endpointId).to.be.a('string');
+
+
     });
 
 });

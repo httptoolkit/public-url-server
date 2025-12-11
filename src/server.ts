@@ -1,27 +1,13 @@
-import * as http2 from 'http2';
+
 import * as httpolyglot from '@httptoolkit/httpolyglot';
-import { makeDestroyable, DestroyableServer } from 'destroyable-server';
+import { makeDestroyable } from 'destroyable-server';
+import { AdminServer } from './admin-server.js';
 
 async function startAdminServer(options: {
     adminPort: number;
 }) {
-    const adminServer = makeDestroyable(http2.createServer());
-    adminServer.on('session', (session) => {
-        session.on('stream', (stream, headers) => {
-            console.log('Received admin request:', headers[':method'], headers[':path']);
-            stream.respond({ ':status': 200 });
-            stream.end("Hello world");
-        });
-    });
-
-    await new Promise<void>((resolve) => {
-        adminServer.listen({ port: options.adminPort }, resolve);
-    });
-
-    adminServer.on('connection', (socket) => {
-        console.log('Got socket for admin server');
-    });
-
+    const adminServer = new AdminServer(options.adminPort);
+    await adminServer.start();
     return adminServer;
 }
 
@@ -55,7 +41,7 @@ export async function startServers(options: {
     adminPort: number;
     publicPort: number;
 }) {
-    const servers: DestroyableServer[] = await Promise.all([
+    const servers: Array<{ destroy: () => Promise<void> }> = await Promise.all([
         startAdminServer({ adminPort: options.adminPort }),
         startPublicUrlServer({ publicPort: options.publicPort })
     ]);
