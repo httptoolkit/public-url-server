@@ -6,8 +6,11 @@ metadata:
   namespace: public-endpoint
 spec:
   parentRefs:
-    - name: main-gateway
-      namespace: envoy-gateway-system
+    - name: primary-gateway
+      namespace: gateway
+      sectionName: tls-httptoolk-it
+    - name: secondary-gateway
+      namespace: gateway
       sectionName: tls-httptoolk-it
   rules:
     - backendRefs:
@@ -22,8 +25,11 @@ metadata:
   namespace: public-endpoint
 spec:
   parentRefs:
-    - name: main-gateway
-      namespace: envoy-gateway-system
+    - name: primary-gateway
+      namespace: gateway
+      sectionName: http
+    - name: secondary-gateway
+      namespace: gateway
       sectionName: http
   hostnames:
     - "*.e.httptoolk.it"
@@ -44,8 +50,11 @@ metadata:
   namespace: public-endpoint
 spec:
   parentRefs:
-    - name: main-gateway
-      namespace: envoy-gateway-system
+    - name: primary-gateway
+      namespace: gateway
+      sectionName: tls-endpoint-admin-httptoolkit-tech
+    - name: secondary-gateway
+      namespace: gateway
       sectionName: tls-endpoint-admin-httptoolkit-tech
   rules:
     - backendRefs:
